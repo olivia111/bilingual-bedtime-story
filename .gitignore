@@ -1,0 +1,22 @@
+# Secrets — never commit your real API key
+.env
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Generated audio output
+outputs/
+
+# Local test fixtures
+testpages/
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db

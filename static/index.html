@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bilingual Bedtime Story</title>
+  <style>
+    :root { --bg:#1b1430; --card:#2a2046; --accent:#f5b8d0; --accent2:#a8c7ff; --text:#f3eefc; --muted:#bcaede; }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; font-family:'Segoe UI', system-ui, sans-serif;
+      background: radial-gradient(circle at 20% 10%, #3a2a5e, var(--bg));
+      color:var(--text); min-height:100vh; padding:32px 16px;
+    }
+    .wrap { max-width:760px; margin:0 auto; }
+    h1 { font-size:1.9rem; margin:0 0 4px; }
+    h1 .moon { font-size:1.6rem; }
+    .sub { color:var(--muted); margin:0 0 24px; }
+    .card { background:var(--card); border-radius:18px; padding:22px; margin-bottom:20px;
+            box-shadow:0 10px 30px rgba(0,0,0,.3); }
+    .drop {
+      border:2px dashed #6b5a9c; border-radius:14px; padding:34px; text-align:center;
+      cursor:pointer; transition:.15s; color:var(--muted);
+    }
+    .drop:hover, .drop.drag { border-color:var(--accent); color:var(--text); background:#33285580; }
+    input[type=file] { display:none; }
+    #thumbs { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    #thumbs .t { position:relative; }
+    #thumbs img { width:88px; height:88px; object-fit:cover; border-radius:10px; border:2px solid #6b5a9c; }
+    #thumbs .idx { position:absolute; top:-8px; left:-8px; background:var(--accent); color:#2a1430;
+                   width:22px; height:22px; border-radius:50%; font-size:.8rem; font-weight:700;
+                   display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    #thumbs .rm { position:absolute; top:-8px; right:-8px; margin:0; padding:0; background:#ff7a8a;
+                  color:#2a1430; width:22px; height:22px; border-radius:50%; font-size:1rem; font-weight:700;
+                  line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
+    #thumbs .mv { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); display:flex; gap:4px; }
+    #thumbs .mv button { margin:0; padding:1px 8px; border-radius:7px; font-size:.95rem; font-weight:700;
+                         background:#241433cc; color:#fff; border:none; cursor:pointer; }
+    #thumbs .mv button:disabled { opacity:.3; cursor:default; }
+    button {
+      background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#241433; border:none;
+      padding:13px 26px; border-radius:999px; font-size:1.05rem; font-weight:600; cursor:pointer;
+      margin-top:16px; transition:.15s;
+    }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button:not(:disabled):hover { transform:translateY(-1px); }
+    .hidden { display:none; }
+    .title { font-size:1.5rem; margin:0 0 14px; color:var(--accent); }
+    .page { border-left:3px solid var(--accent2); padding:4px 0 4px 14px; margin:0 0 18px; }
+    .page .narr { line-height:1.7; }
+    .page .illus { color:var(--muted); font-style:italic; font-size:.92rem; margin-top:6px; }
+    .page .zh { color:var(--accent); font-size:.85rem; margin-top:6px; }
+    .vocab { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .chip { background:#3a2c60; border:1px solid #6b5a9c; border-radius:10px; padding:8px 12px; }
+    .chip b { color:var(--accent); font-size:1.05rem; }
+    .chip span { color:var(--muted); }
+    .narrLabel { display:block; margin:22px 0 8px; font-weight:600; color:var(--accent2); }
+    textarea#narration {
+      width:100%; min-height:200px; resize:vertical; padding:14px 16px; border-radius:12px;
+      background:#1f1838; color:var(--text); border:1px solid #6b5a9c; font-size:1rem;
+      line-height:1.7; font-family:inherit;
+    }
+    textarea#narration:focus { outline:none; border-color:var(--accent); }
+    audio { width:100%; margin-top:8px; }
+    .spinner { display:inline-block; width:18px; height:18px; border:3px solid #ffffff60;
+               border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-4px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .err { color:#ff9aa2; margin-top:12px; }
+    .tabs { display:flex; gap:8px; margin-bottom:18px; }
+    .tab {
+      flex:1; margin:0; padding:11px 14px; border-radius:999px; cursor:pointer;
+      background:#2a2046; color:var(--muted); border:1px solid #6b5a9c; font-size:1rem;
+      font-weight:600; transition:.15s;
+    }
+    .tab:not(:disabled):hover { transform:none; color:var(--text); }
+    .tab.active { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#241433; border-color:transparent; }
+    a.dl {
+      display:inline-block; margin-top:10px; padding:9px 18px; border-radius:999px;
+      background:#3a2c60; border:1px solid #6b5a9c; color:var(--text); text-decoration:none;
+      font-weight:600; font-size:.95rem; transition:.15s;
+    }
+    a.dl:hover { border-color:var(--accent); transform:translateY(-1px); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1><span class="moon">🌙</span> Bilingual Bedtime Story</h1>
+    <p class="sub">Turn a Chinese picture book into a cosy bedtime story — in English, with a few
+       Chinese words kept just for you — and read it aloud. Or paste your own story and I'll narrate it.</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tabPics" data-mode="pics">📖 From a picture book</button>
+      <button class="tab" id="tabText" data-mode="text">✍️ Paste a story</button>
+    </div>
+
+    <div class="card" id="uploadCard">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*" multiple />
+        <div>📖 Tap to choose pictures, or drop them here</div>
+        <div style="font-size:.85rem;margin-top:6px;">PNG · JPG · WEBP — in page order</div>
+      </label>
+      <div id="thumbs"></div>
+      <button id="go" disabled>Tell me the story</button>
+      <div id="err" class="err"></div>
+    </div>
+
+    <div class="card hidden" id="storyCard">
+      <h2 class="title" id="storyTitle"></h2>
+      <div id="vocab" class="vocab"></div>
+      <div id="pages" style="margin-top:18px;"></div>
+    </div>
+
+    <div class="card hidden" id="audioCard">
+      <label class="narrLabel" id="narrLabel" for="narration">✏️ Narration script — tweak the wording however you like, then have me read it aloud</label>
+      <textarea id="narration" spellcheck="false"></textarea>
+      <button id="genAudio">🔊 Read it aloud</button>
+      <div id="audioErr" class="err"></div>
+      <audio id="player" controls class="hidden"></audio>
+      <div><a id="download" class="dl hidden" download="bedtime-story.mp3">⬇️ Download MP3</a></div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('file');
+    const drop = document.getElementById('drop');
+    const thumbs = document.getElementById('thumbs');
+    const go = document.getElementById('go');
+    const err = document.getElementById('err');
+    let files = [];
+
+    let objectUrls = [];
+    function refresh() {
+      objectUrls.forEach(u => URL.revokeObjectURL(u));
+      objectUrls = [];
+      thumbs.innerHTML = '';
+      files.forEach((f, i) => {
+        const d = document.createElement('div'); d.className = 't';
+        const url = URL.createObjectURL(f); objectUrls.push(url);
+        const img = document.createElement('img'); img.src = url; img.title = f.name;
+        const idx = document.createElement('div'); idx.className = 'idx'; idx.textContent = i + 1;
+
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm';
+        rm.textContent = '×'; rm.title = 'Remove this picture';
+        rm.addEventListener('click', () => { files.splice(i, 1); refresh(); });
+
+        const mv = document.createElement('div'); mv.className = 'mv';
+        const left = document.createElement('button'); left.type = 'button';
+        left.textContent = '‹'; left.title = 'Move earlier'; left.disabled = i === 0;
+        left.addEventListener('click', () => { [files[i - 1], files[i]] = [files[i], files[i - 1]]; refresh(); });
+        const right = document.createElement('button'); right.type = 'button';
+        right.textContent = '›'; right.title = 'Move later'; right.disabled = i === files.length - 1;
+        right.addEventListener('click', () => { [files[i], files[i + 1]] = [files[i + 1], files[i]]; refresh(); });
+        mv.appendChild(left); mv.appendChild(right);
+
+        d.appendChild(img); d.appendChild(idx); d.appendChild(rm); d.appendChild(mv);
+        thumbs.appendChild(d);
+      });
+      go.disabled = files.length === 0;
+    }
+
+    // Add pictures and default to ascending filename order (natural/numeric, so page2 < page10).
+    function addFiles(list) {
+      files = files.concat(list);
+      files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      refresh();
+    }
+
+    // Reset the input value so removing then re-adding the same file still fires `change`.
+    fileInput.addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+    ['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+    drop.addEventListener('drop', e => { addFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('image/'))); });
+
+    const narration = document.getElementById('narration');
+    const genAudio = document.getElementById('genAudio');
+    const audioErr = document.getElementById('audioErr');
+    const player = document.getElementById('player');
+    const download = document.getElementById('download');
+    const narrLabel = document.getElementById('narrLabel');
+    const uploadCard = document.getElementById('uploadCard');
+    const storyCard = document.getElementById('storyCard');
+    const audioCard = document.getElementById('audioCard');
+    const tabPics = document.getElementById('tabPics');
+    const tabText = document.getElementById('tabText');
+
+    const PICS_LABEL = '✏️ Narration script — tweak the wording however you like, then have me read it aloud';
+    const TEXT_LABEL = '✍️ Your story — type or paste it here, then have me read it aloud';
+
+    function clearAudio() {
+      player.classList.add('hidden');
+      player.removeAttribute('src');
+      download.classList.add('hidden');
+      download.removeAttribute('href');
+      audioErr.textContent = '';
+    }
+
+    // Switch between "from pictures" and "paste a story" modes.
+    function setMode(mode) {
+      const pics = mode === 'pics';
+      tabPics.classList.toggle('active', pics);
+      tabText.classList.toggle('active', !pics);
+      uploadCard.classList.toggle('hidden', !pics);
+      err.textContent = '';
+      clearAudio();
+      if (pics) {
+        // Reset to the upload step; the editor reappears once a story is generated.
+        storyCard.classList.add('hidden');
+        audioCard.classList.add('hidden');
+        narrLabel.textContent = PICS_LABEL;
+      } else {
+        // Paste mode: no pictures, no story details — just the editor.
+        storyCard.classList.add('hidden');
+        audioCard.classList.remove('hidden');
+        narrLabel.textContent = TEXT_LABEL;
+        narration.value = '';
+        narration.focus();
+      }
+    }
+    tabPics.addEventListener('click', () => setMode('pics'));
+    tabText.addEventListener('click', () => setMode('text'));
+
+    // Step 1: pictures -> story text (no audio yet).
+    go.addEventListener('click', async () => {
+      err.textContent = '';
+      go.disabled = true;
+      const original = go.innerHTML;
+      go.innerHTML = '<span class="spinner"></span> Reading the pictures...';
+      try {
+        const fd = new FormData();
+        files.forEach(f => fd.append('images', f));
+        const res = await fetch('/api/story', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.detail || ('HTTP ' + res.status));
+        }
+        render(await res.json());
+      } catch (e) {
+        err.textContent = '😟 ' + e.message;
+      } finally {
+        go.disabled = false;
+        go.innerHTML = original;
+      }
+    });
+
+    // Step 2: (edited) narration text -> audio.
+    genAudio.addEventListener('click', async () => {
+      audioErr.textContent = '';
+      const text = narration.value.trim();
+      if (!text) { audioErr.textContent = '😟 The narration is empty.'; return; }
+      genAudio.disabled = true;
+      const original = genAudio.innerHTML;
+      genAudio.innerHTML = '<span class="spinner"></span> Generating...';
+      try {
+        const res = await fetch('/api/audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.detail || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        player.src = data.audio_url + '?t=' + Date.now();  // bust cache on re-record
+        player.classList.remove('hidden');
+        download.href = data.audio_url;  // clean URL so the saved file has no query string
+        download.classList.remove('hidden');
+        player.scrollIntoView({ behavior: 'smooth' });
+        player.play().catch(() => {});
+      } catch (e) {
+        audioErr.textContent = '😟 ' + e.message;
+      } finally {
+        genAudio.disabled = false;
+        genAudio.innerHTML = original;
+      }
+    });
+
+    function render(data) {
+      storyCard.classList.remove('hidden');
+      audioCard.classList.remove('hidden');
+      narrLabel.textContent = PICS_LABEL;
+      document.getElementById('storyTitle').textContent = data.story.title;
+
+      // Editable narration script; hide any previously generated audio.
+      narration.value = data.full_narration || '';
+      clearAudio();
+
+      const v = document.getElementById('vocab'); v.innerHTML = '';
+      (data.story.vocab || []).forEach(item => {
+        const c = document.createElement('div'); c.className = 'chip';
+        c.innerHTML = `<b>${item.chinese}</b> <span>${item.pinyin} — ${item.english}</span>`;
+        v.appendChild(c);
+      });
+
+      const p = document.getElementById('pages'); p.innerHTML = '';
+      data.story.pages.forEach(pg => {
+        const d = document.createElement('div'); d.className = 'page';
+        d.innerHTML = `<div class="narr">${pg.narration}</div>` +
+          (pg.illustration ? `<div class="illus">🖼️ ${pg.illustration}</div>` : '') +
+          (pg.original_chinese ? `<div class="zh">原文：${pg.original_chinese}</div>` : '');
+        p.appendChild(d);
+      });
+      storyCard.scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
