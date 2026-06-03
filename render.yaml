@@ -1,0 +1,28 @@
+# Render Blueprint — deploys the bilingual bedtime story app as a web service.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: bilingual-bedtime-story
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Pin the Python version Render builds with.
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      # Secret — set its value in the Render dashboard, NOT here.
+      - key: GEMINI_API_KEY
+        sync: false
+      # Optional overrides (defaults live in app/config.py).
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: TTS_VOICE
+        value: en-US-AvaMultilingualNeural
+      - key: RATE_LIMIT_STORY
+        value: 10/minute;100/day
+      - key: RATE_LIMIT_AUDIO
+        value: 30/minute;300/day

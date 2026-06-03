@@ -1,15 +1,27 @@
 """FastAPI app: upload storybook pages -> bilingual bedtime story -> audio."""
-from __future__ import annotations
-
 import uuid
 from typing import List
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from . import config, gemini_client, tts
 from .models import AudioRequest, AudioResponse, StoryDraft, StoryResponse
+
+
+def _client_ip(request: Request) -> str:
+    """Real client IP, honoring the X-Forwarded-For header set by hosts like Render."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_client_ip)
 
 app = FastAPI(
     title="Bilingual Bedtime Story Assistant",
@@ -20,6 +32,10 @@ app = FastAPI(
     ),
     version="1.0.0",
 )
+
+# Wire up per-client rate limiting (returns HTTP 429 when a limit is exceeded).
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Serve generated audio.
 app.mount("/audio", StaticFiles(directory=str(config.OUTPUT_DIR)), name="audio")
@@ -69,7 +85,8 @@ async def _synthesize(text: str) -> str:
 
 
 @app.post("/api/story", response_model=StoryDraft)
-async def make_story(images: List[UploadFile] = File(...)) -> StoryDraft:
+@limiter.limit(config.RATE_LIMIT_STORY)
+async def make_story(request: Request, images: List[UploadFile] = File(...)) -> StoryDraft:
     """Turn uploaded storybook pages into a bilingual bedtime story (text only).
 
     Returns the structured story and an editable narration script. No audio is
@@ -88,7 +105,8 @@ async def make_story(images: List[UploadFile] = File(...)) -> StoryDraft:
 
 
 @app.post("/api/audio", response_model=AudioResponse)
-async def make_audio(req: AudioRequest) -> AudioResponse:
+@limiter.limit(config.RATE_LIMIT_AUDIO)
+async def make_audio(request: Request, req: AudioRequest) -> AudioResponse:
     """Read a (possibly edited) narration script aloud and return the audio URL."""
     text = req.text.strip()
     if not text:
@@ -98,7 +116,8 @@ async def make_audio(req: AudioRequest) -> AudioResponse:
 
 
 @app.post("/api/tell", response_model=StoryResponse)
-async def tell_story(images: List[UploadFile] = File(...)) -> StoryResponse:
+@limiter.limit(config.RATE_LIMIT_STORY)
+async def tell_story(request: Request, images: List[UploadFile] = File(...)) -> StoryResponse:
     """Legacy one-shot: uploaded pages -> bilingual bedtime story + audio."""
     page_data = await _read_images(images)
 

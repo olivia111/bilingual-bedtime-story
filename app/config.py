@@ -17,6 +17,11 @@ TTS_VOICE = os.getenv("TTS_VOICE", "en-US-AvaMultilingualNeural").strip()
 TTS_RATE = os.getenv("TTS_RATE", "-10%").strip()
 TTS_PITCH = os.getenv("TTS_PITCH", "+0Hz").strip()
 
+# Per-client rate limits (slowapi syntax; combine windows with ";").
+# Story generation hits the paid Gemini API, so it is capped tighter than audio.
+RATE_LIMIT_STORY = os.getenv("RATE_LIMIT_STORY", "10/minute;100/day").strip()
+RATE_LIMIT_AUDIO = os.getenv("RATE_LIMIT_AUDIO", "30/minute;300/day").strip()
+
 # Where generated audio files are written and served from.
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)

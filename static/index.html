@@ -231,7 +231,7 @@
         const res = await fetch('/api/story', { method: 'POST', body: fd });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
-          throw new Error(j.detail || ('HTTP ' + res.status));
+          throw new Error(j.detail || j.error || ('HTTP ' + res.status));
         }
         render(await res.json());
       } catch (e) {
@@ -258,7 +258,7 @@
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
-          throw new Error(j.detail || ('HTTP ' + res.status));
+          throw new Error(j.detail || j.error || ('HTTP ' + res.status));
         }
         const data = await res.json();
         player.src = data.audio_url + '?t=' + Date.now();  // bust cache on re-record

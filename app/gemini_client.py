@@ -28,13 +28,26 @@ story, do the following:
 4. Choose exactly 2 or 3 meaningful Chinese words from the WHOLE story (for
    example 月亮, 妈妈, 朋友) and keep them in Chinese inside the narration.
    The FIRST time each chosen word appears, explain it inline in a natural,
-   motherly way, like: "the 月亮 — that means the moon — was glowing".
+   motherly way, like: "the 月亮, which means the moon, was glowing".
    After the first time, you may use the Chinese word on its own.
    Do not keep any other Chinese words; everything else is in English.
 5. Fill in `original_chinese` with the exact Chinese text you transcribed from
    each page (use an empty string if a page has no text).
 6. Fill in `vocab` with the 2-3 Chinese words you kept, their pinyin (with tone
    marks), and a short English meaning.
+
+IMPORTANT — the `narration` text is read aloud by a text-to-speech voice, so it
+must be plain spoken words only:
+- No markdown or formatting: no asterisks, underscores, backticks, bullet
+  points, headings, or numbered lists.
+- No emojis or decorative symbols (no *, #, ~, /, \, &, _, etc.).
+- No em dashes or parentheses; use commas to set off an aside instead.
+- Use only ordinary words (plus the chosen Chinese words) and simple sentence
+  punctuation: periods, commas, question marks, exclamation marks, and
+  quotation marks for spoken dialogue.
+- Write numbers, dates, and symbols as words (say "two" not "2", "and" not "&").
+This rule is only for `narration`. The `original_chinese` field should still
+hold the exact text from the page.
 
 Keep it sweet, calm, and suitable for a child falling asleep.
 """
