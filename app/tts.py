@@ -47,6 +47,12 @@ def to_pinyin(text: str) -> str:
     return _to_pinyin(text)
 
 
+def _pad_chinese(text: str) -> str:
+    """Wrap each run of Chinese characters with ",," so the voice pauses around it
+    (e.g. "the 月亮 moon" -> "the ,,月亮,, moon")."""
+    return _CJK.sub(lambda m: f",,{m.group()},,", text)
+
+
 def _split_sections(text: str) -> list[str]:
     """Split narration into sections on blank lines (one section per page)."""
     sections = [s.strip() for s in re.split(r"\n\s*\n", text) if s.strip()]
@@ -193,11 +199,12 @@ def _azure_tts_mp3(text: str, attempts: int = 3) -> bytes:
     the page-flip MP3. Retries on transient errors.
     """
     url = f"https://{config.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+    body = f"<prosody rate='{config.TTS_RATE}'>{escape(text)}</prosody>"
+    if config.AZURE_TTS_STYLE:
+        body = f"<mstts:express-as style='{config.AZURE_TTS_STYLE}'>{body}</mstts:express-as>"
     ssml = (
-        "<speak version='1.0' xml:lang='zh-CN'>"
-        f"<voice name='{config.AZURE_TTS_VOICE}'>"
-        f"<prosody rate='{config.TTS_RATE}'>{escape(text)}</prosody>"
-        "</voice></speak>"
+        "<speak version='1.0' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>"
+        f"<voice name='{config.AZURE_TTS_VOICE}'>{body}</voice></speak>"
     )
     headers = {
         "Ocp-Apim-Subscription-Key": config.AZURE_SPEECH_KEY,
@@ -246,6 +253,8 @@ async def synthesize_story(text: str) -> tuple[bytes, str]:
     sections = _split_sections(text)
     if config.TTS_PINYIN:
         sections = [_to_pinyin(s) for s in sections]
+    if config.TTS_PAD_CHINESE:
+        sections = [_pad_chinese(s) for s in sections]
     if config.TTS_PROVIDER == "azure":
         return await _azure_story(sections), "audio/mpeg"
     if config.TTS_PROVIDER == "gemini":

@@ -27,10 +27,14 @@ services:
         value: azure
       - key: TTS_PINYIN
         value: "false"
+      - key: TTS_PAD_CHINESE
+        value: "true"
       - key: AZURE_SPEECH_REGION
         value: eastus
       - key: AZURE_TTS_VOICE
         value: zh-CN-XiaoxiaoMultilingualNeural
+      - key: AZURE_TTS_STYLE
+        value: story
       # Gemini TTS (used only when TTS_PROVIDER=gemini).
       - key: GEMINI_TTS_MODEL
         value: gemini-2.5-flash-preview-tts

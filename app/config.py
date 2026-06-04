@@ -24,10 +24,15 @@ TTS_PROVIDER = os.getenv("TTS_PROVIDER", "azure").strip().lower()
 # voices that mispronounce characters). Affects audio only, not the displayed story.
 TTS_PINYIN = os.getenv("TTS_PINYIN", "false").strip().lower() in ("1", "true", "yes", "on")
 
+# Wrap each Chinese run with ",," so the voice pauses around it (audio only).
+TTS_PAD_CHINESE = os.getenv("TTS_PAD_CHINESE", "true").strip().lower() in ("1", "true", "yes", "on")
+
 # Azure AI Speech settings (used when TTS_PROVIDER == "azure").
 AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "").strip()
 AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus").strip()
 AZURE_TTS_VOICE = os.getenv("AZURE_TTS_VOICE", "zh-CN-XiaoxiaoMultilingualNeural").strip()
+# Azure speaking style (mstts:express-as). "story" = storytelling. Empty = none.
+AZURE_TTS_STYLE = os.getenv("AZURE_TTS_STYLE", "story").strip()
 
 # Gemini TTS settings (used when TTS_PROVIDER == "gemini").
 GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip()
