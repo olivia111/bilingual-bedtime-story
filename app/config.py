@@ -13,7 +13,32 @@ load_dotenv(PROJECT_ROOT / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 
-TTS_VOICE = os.getenv("TTS_VOICE", "zh-CN-XiaoxiaoNeural").strip()
+# TTS provider:
+#   "azure"  = Azure AI Speech (needs a key; free F0 tier; full voice catalog
+#              incl. native multilingual zh-CN-XiaoxiaoMultilingualNeural)
+#   "gemini" = Gemini's native TTS (paid per call)
+#   "edge"   = free Microsoft Edge voices (limited catalog)
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "azure").strip().lower()
+
+# Convert Chinese characters to tone-marked Pinyin before TTS (improves tones on
+# voices that mispronounce characters). Affects audio only, not the displayed story.
+TTS_PINYIN = os.getenv("TTS_PINYIN", "false").strip().lower() in ("1", "true", "yes", "on")
+
+# Azure AI Speech settings (used when TTS_PROVIDER == "azure").
+AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "").strip()
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus").strip()
+AZURE_TTS_VOICE = os.getenv("AZURE_TTS_VOICE", "zh-CN-XiaoxiaoMultilingualNeural").strip()
+
+# Gemini TTS settings (used when TTS_PROVIDER == "gemini").
+GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip()
+GEMINI_TTS_VOICE = os.getenv("GEMINI_TTS_VOICE", "Kore").strip()
+GEMINI_TTS_STYLE = os.getenv(
+    "GEMINI_TTS_STYLE",
+    "Read in a warm, gentle, soothing bedtime voice, slowly and softly:",
+).strip()
+
+# Edge TTS settings (used when TTS_PROVIDER == "edge").
+TTS_VOICE = os.getenv("TTS_VOICE", "en-US-AvaMultilingualNeural").strip()
 TTS_RATE = os.getenv("TTS_RATE", "-10%").strip()
 TTS_PITCH = os.getenv("TTS_PITCH", "+0Hz").strip()
 
@@ -29,7 +54,9 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 STATIC_DIR = PROJECT_ROOT / "static"
 
 # Sound effect inserted between pages (blank-line-separated sections) in narration audio.
+# MP3 for the edge provider; WAV (raw PCM) for the gemini provider.
 PAGE_FLIP_SOUND = Path(__file__).resolve().parent / "assets" / "page-flip-01a.mp3"
+PAGE_FLIP_WAV = Path(__file__).resolve().parent / "assets" / "page-flip-01a.wav"
 
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg",

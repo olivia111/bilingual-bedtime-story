@@ -14,14 +14,31 @@ services:
       # Pin the Python version Render builds with.
       - key: PYTHON_VERSION
         value: 3.10.11
-      # Secret — set its value in the Render dashboard, NOT here.
+      # Secrets — set their values in the Render dashboard, NOT here.
       - key: GEMINI_API_KEY
+        sync: false
+      - key: AZURE_SPEECH_KEY
         sync: false
       # Optional overrides (defaults live in app/config.py).
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      # TTS: "azure" (native multilingual zh-CN), "gemini" (paid), or "edge" (free).
+      - key: TTS_PROVIDER
+        value: azure
+      - key: TTS_PINYIN
+        value: "false"
+      - key: AZURE_SPEECH_REGION
+        value: eastus
+      - key: AZURE_TTS_VOICE
+        value: zh-CN-XiaoxiaoMultilingualNeural
+      # Gemini TTS (used only when TTS_PROVIDER=gemini).
+      - key: GEMINI_TTS_MODEL
+        value: gemini-2.5-flash-preview-tts
+      - key: GEMINI_TTS_VOICE
+        value: Kore
+      # Edge fallback voice (used only when TTS_PROVIDER=edge).
       - key: TTS_VOICE
-        value: zh-CN-XiaoxiaoNeural
+        value: en-US-AvaMultilingualNeural
       - key: RATE_LIMIT_STORY
         value: 10/minute;100/day
       - key: RATE_LIMIT_AUDIO

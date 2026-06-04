@@ -80,6 +80,11 @@
       font-weight:600; font-size:.95rem; transition:.15s;
     }
     a.dl:hover { border-color:var(--accent); transform:translateY(-1px); }
+    button.secondary { background:#3a2c60; color:var(--text); border:1px solid #6b5a9c; margin-left:8px; }
+    button.secondary:not(:disabled):hover { border-color:var(--accent); }
+    .pinyin { margin-top:12px; padding:12px 14px; border-radius:10px; background:#1f1838;
+              border:1px solid #6b5a9c; color:var(--muted); white-space:pre-wrap; line-height:1.7; font-size:.95rem; }
+    .pinyin .tag { display:block; color:var(--accent2); font-size:.8rem; font-weight:600; margin-bottom:6px; }
   </style>
 </head>
 <body>
@@ -114,6 +119,8 @@
       <label class="narrLabel" id="narrLabel" for="narration">✏️ Narration script — tweak the wording however you like, then have me read it aloud</label>
       <textarea id="narration" spellcheck="false"></textarea>
       <button id="genAudio">🔊 Read it aloud</button>
+      <button id="showPinyin" class="secondary">🔤 Show Pinyin</button>
+      <div id="pinyinOut" class="pinyin hidden"></div>
       <div id="audioErr" class="err"></div>
       <audio id="player" controls class="hidden"></audio>
       <div><a id="download" class="dl hidden" download="bedtime-story.mp3">⬇️ Download MP3</a></div>
@@ -182,6 +189,8 @@
     const audioCard = document.getElementById('audioCard');
     const tabPics = document.getElementById('tabPics');
     const tabText = document.getElementById('tabText');
+    const showPinyin = document.getElementById('showPinyin');
+    const pinyinOut = document.getElementById('pinyinOut');
     let audioUrl = null;  // object URL for the in-memory MP3, freed on clear/re-record
 
     const PICS_LABEL = '✏️ Narration script — tweak the wording however you like, then have me read it aloud';
@@ -192,6 +201,8 @@
       player.removeAttribute('src');
       download.classList.add('hidden');
       download.removeAttribute('href');
+      pinyinOut.classList.add('hidden');
+      pinyinOut.textContent = '';
       if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
       audioErr.textContent = '';
     }
@@ -269,6 +280,7 @@
         player.src = audioUrl;
         player.classList.remove('hidden');
         download.href = audioUrl;
+        download.download = 'bedtime-story.' + (blob.type.includes('wav') ? 'wav' : 'mp3');
         download.classList.remove('hidden');
         player.scrollIntoView({ behavior: 'smooth' });
         player.play().catch(() => {});
@@ -277,6 +289,37 @@
       } finally {
         genAudio.disabled = false;
         genAudio.innerHTML = original;
+      }
+    });
+
+    // Show the Pinyin conversion that gets sent to the TTS engine.
+    showPinyin.addEventListener('click', async () => {
+      audioErr.textContent = '';
+      const text = narration.value.trim();
+      if (!text) { audioErr.textContent = '😟 Nothing to convert yet.'; return; }
+      showPinyin.disabled = true;
+      try {
+        const res = await fetch('/api/pinyin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.detail || j.error || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        const tag = data.enabled
+          ? 'This is what the TTS reads:'
+          : 'Pinyin conversion is currently OFF — TTS reads the characters. Preview:';
+        pinyinOut.innerHTML = '<span class="tag"></span>';
+        pinyinOut.querySelector('.tag').textContent = tag;
+        pinyinOut.appendChild(document.createTextNode(data.pinyin));
+        pinyinOut.classList.remove('hidden');
+      } catch (e) {
+        audioErr.textContent = '😟 ' + e.message;
+      } finally {
+        showPinyin.disabled = false;
       }
     });
 

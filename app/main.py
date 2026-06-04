@@ -117,14 +117,21 @@ async def make_audio(request: Request, req: AudioRequest) -> Response:
     if not text:
         raise HTTPException(status_code=400, detail="Narration text is empty.")
     try:
-        audio = await tts.synthesize_story_bytes(text)
+        audio, media_type = await tts.synthesize_story(text)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Audio synthesis failed: {exc}")
+    ext = "wav" if media_type == "audio/wav" else "mp3"
     return Response(
         content=audio,
-        media_type="audio/mpeg",
-        headers={"Content-Disposition": 'inline; filename="bedtime-story.mp3"'},
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="bedtime-story.{ext}"'},
     )
+
+
+@app.post("/api/pinyin")
+async def make_pinyin(req: AudioRequest) -> dict:
+    """Return the narration with Chinese converted to Pinyin (what TTS receives)."""
+    return {"pinyin": tts.to_pinyin(req.text), "enabled": config.TTS_PINYIN}
 
 
 @app.post("/api/tell", response_model=StoryResponse)
