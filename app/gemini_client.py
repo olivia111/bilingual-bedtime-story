@@ -26,7 +26,7 @@ story, do the following:
 3. Describe the illustration on each page so the child can picture it, woven
    naturally into the telling ("and in the picture you can see...").
 4. Choose exactly 2 or 3 meaningful Chinese words from the WHOLE story (for
-   example 月亮, 妈妈, 朋友) and keep them in Chinese inside the narration.
+   example 月亮, 朋友) and keep them in Chinese inside the narration.
    The FIRST time each chosen word appears, explain it inline in a natural,
    motherly way, like: "the 月亮, which means the moon, was glowing".
    After the first time, you may use the Chinese word on its own.
