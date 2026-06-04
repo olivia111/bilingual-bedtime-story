@@ -13,7 +13,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 
-TTS_VOICE = os.getenv("TTS_VOICE", "en-US-AvaMultilingualNeural").strip()
+TTS_VOICE = os.getenv("TTS_VOICE", "zh-CN-XiaoxiaoNeural").strip()
 TTS_RATE = os.getenv("TTS_RATE", "-10%").strip()
 TTS_PITCH = os.getenv("TTS_PITCH", "+0Hz").strip()
 

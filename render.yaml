@@ -21,7 +21,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: TTS_VOICE
-        value: en-US-AvaMultilingualNeural
+        value: zh-CN-XiaoxiaoNeural
       - key: RATE_LIMIT_STORY
         value: 10/minute;100/day
       - key: RATE_LIMIT_AUDIO
