@@ -6,9 +6,24 @@ narration needs.
 """
 from __future__ import annotations
 
+import re
+
 import edge_tts
 
 from . import config
+
+_page_flip_cache: bytes | None = None
+
+
+def _page_flip_bytes() -> bytes:
+    """The page-flip sound effect (cached). Empty bytes if the file is missing."""
+    global _page_flip_cache
+    if _page_flip_cache is None:
+        try:
+            _page_flip_cache = config.PAGE_FLIP_SOUND.read_bytes()
+        except OSError:
+            _page_flip_cache = b""
+    return _page_flip_cache
 
 
 def _communicate(text: str) -> edge_tts.Communicate:
@@ -33,6 +48,27 @@ async def synthesize_bytes(text: str) -> bytes:
     if not audio:
         raise RuntimeError("Text-to-speech returned no audio.")
     return bytes(audio)
+
+
+async def synthesize_story_bytes(text: str) -> bytes:
+    """Narration to MP3 bytes, with a page-flip sound between sections.
+
+    Sections are separated by blank lines (as produced by build_full_narration,
+    one section per page), so a page-flip plays between each page. The flip clip
+    is pre-normalized to edge-tts's format (24 kHz mono MP3), so the segments
+    concatenate cleanly into one stream.
+    """
+    segments = [s.strip() for s in re.split(r"\n\s*\n", text) if s.strip()]
+    if len(segments) <= 1:
+        return await synthesize_bytes(text)
+
+    flip = _page_flip_bytes()
+    out = bytearray()
+    for i, segment in enumerate(segments):
+        if i and flip:
+            out.extend(flip)
+        out.extend(await synthesize_bytes(segment))
+    return bytes(out)
 
 
 async def synthesize(text: str, out_path: str) -> str:

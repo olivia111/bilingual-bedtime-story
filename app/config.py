@@ -28,6 +28,9 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 STATIC_DIR = PROJECT_ROOT / "static"
 
+# Sound effect inserted between pages (blank-line-separated sections) in narration audio.
+PAGE_FLIP_SOUND = Path(__file__).resolve().parent / "assets" / "page-flip-01a.mp3"
+
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg",
     "image/png",

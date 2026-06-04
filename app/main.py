@@ -117,7 +117,7 @@ async def make_audio(request: Request, req: AudioRequest) -> Response:
     if not text:
         raise HTTPException(status_code=400, detail="Narration text is empty.")
     try:
-        audio = await tts.synthesize_bytes(text)
+        audio = await tts.synthesize_story_bytes(text)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Audio synthesis failed: {exc}")
     return Response(
