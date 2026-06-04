@@ -58,12 +58,6 @@ class AudioRequest(BaseModel):
     text: str = Field(description="The narration script to read aloud")
 
 
-class AudioResponse(BaseModel):
-    """The synthesized-audio result."""
-
-    audio_url: str
-
-
 class StoryResponse(BaseModel):
     """What the legacy one-shot /api/tell endpoint returns to the client."""
 

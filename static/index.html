@@ -182,6 +182,7 @@
     const audioCard = document.getElementById('audioCard');
     const tabPics = document.getElementById('tabPics');
     const tabText = document.getElementById('tabText');
+    let audioUrl = null;  // object URL for the in-memory MP3, freed on clear/re-record
 
     const PICS_LABEL = '✏️ Narration script — tweak the wording however you like, then have me read it aloud';
     const TEXT_LABEL = '✍️ Your story — type or paste it here, then have me read it aloud';
@@ -191,6 +192,7 @@
       player.removeAttribute('src');
       download.classList.add('hidden');
       download.removeAttribute('href');
+      if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
       audioErr.textContent = '';
     }
 
@@ -260,10 +262,13 @@
           const j = await res.json().catch(() => ({}));
           throw new Error(j.detail || j.error || ('HTTP ' + res.status));
         }
-        const data = await res.json();
-        player.src = data.audio_url + '?t=' + Date.now();  // bust cache on re-record
+        // The MP3 comes back in the response body; play it straight from memory.
+        const blob = await res.blob();
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        audioUrl = URL.createObjectURL(blob);
+        player.src = audioUrl;
         player.classList.remove('hidden');
-        download.href = data.audio_url;  // clean URL so the saved file has no query string
+        download.href = audioUrl;
         download.classList.remove('hidden');
         player.scrollIntoView({ behavior: 'smooth' });
         player.play().catch(() => {});

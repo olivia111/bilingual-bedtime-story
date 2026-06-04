@@ -2,7 +2,7 @@
 import uuid
 from typing import List
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from . import config, gemini_client, tts
-from .models import AudioRequest, AudioResponse, StoryDraft, StoryResponse
+from .models import AudioRequest, StoryDraft, StoryResponse
 
 
 def _client_ip(request: Request) -> str:
@@ -104,15 +104,27 @@ async def make_story(request: Request, images: List[UploadFile] = File(...)) -> 
     )
 
 
-@app.post("/api/audio", response_model=AudioResponse)
+@app.post("/api/audio")
 @limiter.limit(config.RATE_LIMIT_AUDIO)
-async def make_audio(request: Request, req: AudioRequest) -> AudioResponse:
-    """Read a (possibly edited) narration script aloud and return the audio URL."""
+async def make_audio(request: Request, req: AudioRequest) -> Response:
+    """Read a (possibly edited) narration script aloud and return the MP3 directly.
+
+    The audio bytes are streamed straight back in the response body (no file is
+    written), so the client never makes a second request to a server-stored file
+    that could be missing after a restart — which was causing 404s in the cloud.
+    """
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Narration text is empty.")
-    audio_url = await _synthesize(text)
-    return AudioResponse(audio_url=audio_url)
+    try:
+        audio = await tts.synthesize_bytes(text)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Audio synthesis failed: {exc}")
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": 'inline; filename="bedtime-story.mp3"'},
+    )
 
 
 @app.post("/api/tell", response_model=StoryResponse)
