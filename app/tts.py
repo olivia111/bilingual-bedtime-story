@@ -49,8 +49,8 @@ def to_pinyin(text: str) -> str:
 
 def _pad_chinese(text: str) -> str:
     """Wrap each run of Chinese characters with ",," so the voice pauses around it
-    (e.g. "the 月亮 moon" -> "the ,,月亮,, moon")."""
-    return _CJK.sub(lambda m: f",,{m.group()},,", text)
+    (e.g. "the 月亮 moon" -> "the ,,月亮 moon")."""
+    return _CJK.sub(lambda m: f",, {m.group()}", text)
 
 
 def _split_sections(text: str) -> list[str]:
