@@ -47,10 +47,15 @@ def to_pinyin(text: str) -> str:
     return _to_pinyin(text)
 
 
+_PAD_SURROUND = re.compile(r"[*'\"“”‘’`]*([㐀-䶿一-鿿]+)[*'\"“”‘’`]*")
+
+
 def _pad_chinese(text: str) -> str:
-    """Wrap each run of Chinese characters with ",," so the voice pauses around it
-    (e.g. "the 月亮 moon" -> "the ,,月亮 moon")."""
-    return _CJK.sub(lambda m: f",, {m.group()}", text)
+    """Add a pause lead-in (",, ") before each Chinese run, dropping any emphasis
+    or quote characters (* ' " ` and smart quotes) directly surrounding it so they
+    aren't read aloud or split the pause. Audio only; the displayed story is
+    unchanged. E.g. 'the *月亮*' or 'the "月亮"' -> 'the ,, 月亮'."""
+    return _PAD_SURROUND.sub(lambda m: f",, {m.group(1)}", text)
 
 
 def _split_sections(text: str) -> list[str]:
