@@ -23,9 +23,8 @@ story, do the following:
 1. Read the Chinese text on each page and understand the story.
 2. Retell it in gentle, warm English — the soft, cosy voice a mother uses at
    bedtime. Use simple words and a soothing rhythm. Keep each page short.
-3. Describe the illustration on each page so the child can picture it, woven
-   naturally into the telling ("and in the picture you can see...").
-4. Choose exactly 2 or 3 meaningful Chinese words from the WHOLE story (for
+3. Describe the illustration on each page so the child can picture it.
+4. Choose around 3 meaningful Chinese words from the WHOLE story (for
    example 月亮, 朋友) and keep them in Chinese inside the narration.
    The FIRST time each chosen word appears, explain it inline in a natural,
    motherly way, like: "the 月亮, which means the moon, was glowing".
@@ -33,7 +32,7 @@ story, do the following:
    Do not keep any other Chinese words; everything else is in English.
 5. Fill in `original_chinese` with the exact Chinese text you transcribed from
    each page (use an empty string if a page has no text).
-6. Fill in `vocab` with the 2-3 Chinese words you kept, their pinyin (with tone
+6. Fill in `vocab` with the Chinese words you kept, their pinyin (with tone
    marks), and a short English meaning.
 
 IMPORTANT — the `narration` text is read aloud by a text-to-speech voice, so it
