@@ -15,7 +15,7 @@ import re
 import time
 import urllib.request
 import wave
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 
 import edge_tts
 from google import genai
@@ -27,6 +27,9 @@ from . import config
 _TTS_SAMPLE_RATE = 24000  # both providers emit 24 kHz mono
 
 _CJK = re.compile(r"[㐀-䶿一-鿿]+")
+_SENTENCE_PUNCT = re.compile(r"([.!?。！？])(\s+)")
+_CLAUSE_PUNCT = re.compile(r"([,;:，、；：])(\s*)")
+_HAS_SSML_TAG = re.compile(r"<\s*(mstts:express-as|break|prosody|emphasis|phoneme)\b", re.IGNORECASE)
 
 
 def _to_pinyin(text: str) -> str:
@@ -62,6 +65,29 @@ def _split_sections(text: str) -> list[str]:
     """Split narration into sections on blank lines (one section per page)."""
     sections = [s.strip() for s in re.split(r"\n\s*\n", text) if s.strip()]
     return sections or [text.strip()]
+
+
+def _safe_break_ms(value: str, default_ms: int) -> int:
+    try:
+        ms = int(value)
+    except ValueError:
+        return default_ms
+    return max(0, min(ms, 5000))
+
+
+def _azure_story_markup(text: str) -> str:
+    """Escape narration text and add pause tags for a calmer storytelling cadence."""
+    sentence_ms = _safe_break_ms(config.AZURE_TTS_SENTENCE_BREAK_MS, 650)
+    clause_ms = _safe_break_ms(config.AZURE_TTS_CLAUSE_BREAK_MS, 220)
+    escaped = escape(text)
+    with_sentences = _SENTENCE_PUNCT.sub(
+        rf"\1<break time='{sentence_ms}ms'/>\2", escaped
+    )
+    return _CLAUSE_PUNCT.sub(rf"\1<break time='{clause_ms}ms'/>\2", with_sentences)
+
+
+def _has_ssml_fragment(text: str) -> bool:
+    return bool(_HAS_SSML_TAG.search(text))
 
 
 # --------------------------------------------------------------------------- #
@@ -204,12 +230,23 @@ def _azure_tts_mp3(text: str, attempts: int = 3) -> bytes:
     the page-flip MP3. Retries on transient errors.
     """
     url = f"https://{config.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
-    body = f"<prosody rate='{config.TTS_RATE}'>{escape(text)}</prosody>"
-    if config.AZURE_TTS_STYLE:
-        body = f"<mstts:express-as style='{config.AZURE_TTS_STYLE}'>{body}</mstts:express-as>"
+    ssml_input = text.strip()
+    if _has_ssml_fragment(ssml_input):
+        body = ssml_input
+    else:
+        body = f"<prosody rate={quoteattr(config.TTS_RATE)} pitch={quoteattr(config.TTS_PITCH)}>{_azure_story_markup(ssml_input)}</prosody>"
+        if config.AZURE_TTS_STYLE:
+            express_attrs = [f"style={quoteattr(config.AZURE_TTS_STYLE)}"]
+            if config.AZURE_TTS_STYLE_DEGREE:
+                express_attrs.append(
+                    f"styledegree={quoteattr(config.AZURE_TTS_STYLE_DEGREE)}"
+                )
+            if config.AZURE_TTS_ROLE:
+                express_attrs.append(f"role={quoteattr(config.AZURE_TTS_ROLE)}")
+            body = f"<mstts:express-as {' '.join(express_attrs)}>{body}</mstts:express-as>"
     ssml = (
         "<speak version='1.0' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>"
-        f"<voice name='{config.AZURE_TTS_VOICE}'>{body}</voice></speak>"
+        f"<voice name={quoteattr(config.AZURE_TTS_VOICE)}>{body}</voice></speak>"
     )
     headers = {
         "Ocp-Apim-Subscription-Key": config.AZURE_SPEECH_KEY,
@@ -268,8 +305,10 @@ async def synthesize_story(text: str) -> tuple[bytes, str]:
 
 
 async def synthesize(text: str, out_path: str) -> str:
-    """Render `text` to an MP3 file at `out_path` (Edge TTS). Used by /api/tell."""
-    await _communicate(text).save(out_path)
+    """Render `text` to an audio file at `out_path` using the selected provider."""
+    audio, _ = await synthesize_story(text)
+    with open(out_path, "wb") as f:
+        f.write(audio)
     return out_path
 
 

@@ -34,6 +34,13 @@ story, do the following:
    each page (use an empty string if a page has no text).
 6. Fill in `vocab` with the Chinese words you kept, their pinyin (with tone
    marks), and a short English meaning.
+7. Fill in `narration_ssml` for each page as Azure SSML-style content that uses
+    per-sentence emotion tags. Use one or more blocks like:
+    <mstts:express-as style="cheerful">...</mstts:express-as>
+    <mstts:express-as style="sad">...</mstts:express-as>
+    You may also use styles such as calm, empathetic, and excited.
+    Important: this field must be an SSML fragment only, so do not include
+    <speak> or <voice> wrappers.
 
 IMPORTANT — the `narration` text is read aloud by a text-to-speech voice, so it
 must be plain spoken words only:
@@ -94,12 +101,16 @@ def generate_story(images: List[Tuple[bytes, str]]) -> Story:
     return story
 
 
-def build_full_narration(story: Story) -> str:
+def build_full_narration(story: Story, use_ssml: bool = False) -> str:
     """Stitch the per-page narration into one flowing script for TTS."""
     lines: List[str] = [story.title, ""]
     for page in story.pages:
-        if page.narration.strip():
-            lines.append(page.narration.strip())
+        chunk = page.narration_ssml.strip() if use_ssml and page.narration_ssml.strip() else page.narration.strip()
+        if chunk:
+            lines.append(chunk)
             lines.append("")  # a small pause between pages
-    lines.append("The end. Sweet dreams, my darling.")
+    if use_ssml:
+        lines.append('<mstts:express-as style="calm">The end. Sweet dreams, my darling.</mstts:express-as>')
+    else:
+        lines.append("The end. Sweet dreams, my darling.")
     return "\n".join(lines).strip()

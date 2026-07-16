@@ -74,11 +74,13 @@ async def _read_images(images: List[UploadFile]) -> list[tuple[bytes, str]]:
 
 
 async def _synthesize(text: str) -> str:
-    """Render narration text to a fresh MP3 and return its public /audio URL."""
-    audio_name = f"story_{uuid.uuid4().hex}.mp3"
+    """Render narration text to a fresh audio file and return its public /audio URL."""
+    audio, media_type = await tts.synthesize_story(text)
+    ext = "wav" if media_type == "audio/wav" else "mp3"
+    audio_name = f"story_{uuid.uuid4().hex}.{ext}"
     audio_path = config.OUTPUT_DIR / audio_name
     try:
-        await tts.synthesize(text, str(audio_path))
+        audio_path.write_bytes(audio)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Audio synthesis failed: {exc}")
     return f"/audio/{audio_name}"
@@ -98,9 +100,10 @@ async def make_story(request: Request, images: List[UploadFile] = File(...)) -> 
     except Exception as exc:  # surface a clean error to the client
         raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}")
 
+    use_ssml = config.TTS_PROVIDER == "azure"
     return StoryDraft(
         story=story,
-        full_narration=gemini_client.build_full_narration(story),
+        full_narration=gemini_client.build_full_narration(story, use_ssml=use_ssml),
     )
 
 
@@ -146,7 +149,8 @@ async def tell_story(request: Request, images: List[UploadFile] = File(...)) -> 
     except Exception as exc:  # surface a clean error to the client
         raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}")
 
-    full_narration = gemini_client.build_full_narration(story)
+    use_ssml = config.TTS_PROVIDER == "azure"
+    full_narration = gemini_client.build_full_narration(story, use_ssml=use_ssml)
 
     # 2. Text-to-speech via Edge TTS.
     audio_url = await _synthesize(full_narration)

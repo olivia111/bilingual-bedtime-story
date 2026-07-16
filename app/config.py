@@ -33,6 +33,13 @@ AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus").strip()
 AZURE_TTS_VOICE = os.getenv("AZURE_TTS_VOICE", "zh-CN-XiaoxiaoMultilingualNeural").strip()
 # Azure speaking style (mstts:express-as). "story" = storytelling. Empty = none.
 AZURE_TTS_STYLE = os.getenv("AZURE_TTS_STYLE", "story").strip()
+# Style intensity for mstts:express-as (e.g. 1.0 to 2.0). Empty = provider default.
+AZURE_TTS_STYLE_DEGREE = os.getenv("AZURE_TTS_STYLE_DEGREE", "1.25").strip()
+# Optional speaking role for compatible voices (e.g. Narrator, YoungAdultFemale).
+AZURE_TTS_ROLE = os.getenv("AZURE_TTS_ROLE", "Narrator").strip()
+# Auto-insert sentence and clause pauses in SSML for storytelling cadence.
+AZURE_TTS_SENTENCE_BREAK_MS = os.getenv("AZURE_TTS_SENTENCE_BREAK_MS", "650").strip()
+AZURE_TTS_CLAUSE_BREAK_MS = os.getenv("AZURE_TTS_CLAUSE_BREAK_MS", "220").strip()
 
 # Gemini TTS settings (used when TTS_PROVIDER == "gemini").
 GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip()

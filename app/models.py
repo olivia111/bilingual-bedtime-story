@@ -31,6 +31,13 @@ class StoryPage(BaseModel):
             "words inline and explains each one in English the first time it appears."
         )
     )
+    narration_ssml: str = Field(
+        default="",
+        description=(
+            "Optional Azure SSML fragment for this page (inner content only, no "
+            "<speak> or <voice> wrapper), using per-sentence mstts:express-as tags."
+        ),
+    )
 
 
 class Story(BaseModel):
