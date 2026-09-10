@@ -1,4 +1,4 @@
-"""Pydantic models shared between the Gemini client and the API layer."""
+"""Pydantic models shared between the Lithos AI client and the API layer."""
 from __future__ import annotations
 
 from typing import List
@@ -26,9 +26,11 @@ class StoryPage(BaseModel):
     )
     narration: str = Field(
         description=(
-            "The bedtime narration for this page in a warm motherly tone. "
-            "Weaves the story and the picture together. Keeps the chosen Chinese "
-            "words inline and explains each one in English the first time it appears."
+            "The bedtime narration for this page: warm, plain, unhurried spoken "
+            "English. Weaves the story and the picture together. Keeps the chosen "
+            "Chinese words inline, and the first time each one appears the "
+            "surrounding sentence makes its meaning plain. No pet names, and no "
+            "phrases like 'which means'."
         )
     )
     narration_ssml: str = Field(
@@ -46,7 +48,14 @@ class Story(BaseModel):
     title: str = Field(description="A short, sweet English title for the story")
     pages: List[StoryPage] = Field(description="Pages in upload order")
     vocab: List[VocabItem] = Field(
-        description="Glossary of the 2-3 Chinese words kept in the story"
+        description="Glossary of the Chinese words currently kept in the story"
+    )
+    vocab_candidates: List[VocabItem] = Field(
+        default_factory=list,
+        description=(
+            "Every Chinese word from the book that would work well as a keeper, "
+            "including the ones in `vocab`. The reader picks from this list."
+        ),
     )
 
 
@@ -56,6 +65,15 @@ class StoryDraft(BaseModel):
     story: Story
     full_narration: str = Field(
         description="The stitched narration script, editable before audio synthesis"
+    )
+
+
+class RestyleRequest(BaseModel):
+    """Rebuild a story's narration around a different set of kept words."""
+
+    story: Story = Field(description="The story as it was last returned")
+    keep: List[str] = Field(
+        description="The Chinese words the reader wants kept, e.g. ['月亮', '朋友']"
     )
 
 

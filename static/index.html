@@ -52,15 +52,48 @@
     .page .zh { color:var(--accent); font-size:.85rem; margin-top:6px; }
     .vocab { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
     .chip { background:#3a2c60; border:1px solid #6b5a9c; border-radius:10px; padding:8px 12px; }
+    label.chip { cursor:pointer; display:flex; align-items:center; gap:9px; transition:.15s; opacity:.55; }
+    label.chip:hover { border-color:var(--accent); }
+    label.chip.on { opacity:1; border-color:var(--accent); background:#463571; }
+    label.chip input { accent-color:var(--accent); width:16px; height:16px; margin:0; cursor:pointer; }
+    .vocabHead { display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+                 flex-wrap:wrap; margin:18px 0 10px; }
+    .vocabHead h3 { margin:0; font-size:1rem; color:var(--accent2); }
+    .vocabHead .hint { color:var(--muted); font-size:.85rem; }
+    .wordBox { margin-top:14px; }
+    .wordBox label { display:block; font-size:.9rem; color:var(--accent2); font-weight:600; margin-bottom:6px; }
+    .wordBox input {
+      width:100%; padding:11px 14px; border-radius:10px; background:#1f1838; color:var(--text);
+      border:1px solid #6b5a9c; font-size:1rem; font-family:inherit; box-sizing:border-box;
+    }
+    .wordBox input:focus { outline:none; border-color:var(--accent); }
+    .wordBox .hint { color:var(--muted); font-size:.82rem; margin-top:6px; }
     .chip b { color:var(--accent); font-size:1.05rem; }
     .chip span { color:var(--muted); }
     .narrLabel { display:block; margin:22px 0 8px; font-weight:600; color:var(--accent2); }
-    textarea#narration {
-      width:100%; min-height:200px; resize:vertical; padding:14px 16px; border-radius:12px;
-      background:#1f1838; color:var(--text); border:1px solid #6b5a9c; font-size:1rem;
-      line-height:1.7; font-family:inherit;
+    /* The SSML tags are dimmed by painting a highlighted copy of the text
+       behind a textarea whose own text is transparent. Both layers must share
+       every metric exactly or the caret drifts away from the glyphs. */
+    .editorWrap { position:relative; }
+    textarea#narration, #narrHighlight {
+      width:100%; box-sizing:border-box; padding:14px 16px; border-radius:12px;
+      border:1px solid #6b5a9c; font-size:1rem; line-height:1.7; font-family:inherit;
+      letter-spacing:normal; white-space:pre-wrap; overflow-wrap:break-word; margin:0;
     }
+    textarea#narration {
+      position:relative; z-index:1; min-height:200px; resize:vertical;
+      background:transparent; color:transparent; caret-color:var(--text);
+      display:block;
+    }
+    textarea#narration::selection { background:#6b5a9c88; }
     textarea#narration:focus { outline:none; border-color:var(--accent); }
+    textarea#narration:focus + #narrHighlight { border-color:var(--accent); }
+    #narrHighlight {
+      position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+      background:#1f1838; color:var(--text);
+    }
+    /* Dimmed, but still legible if you go looking for it. */
+    #narrHighlight .tag { color:#6e5fa0; }
     audio { width:100%; margin-top:8px; }
     .spinner { display:inline-block; width:18px; height:18px; border:3px solid #ffffff60;
                border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-4px; }
@@ -105,19 +138,33 @@
         <div style="font-size:.85rem;margin-top:6px;">PNG · JPG · WEBP — in page order</div>
       </label>
       <div id="thumbs"></div>
+      <div class="wordBox">
+        <label for="keepWords">Chinese words to keep (optional)</label>
+        <input id="keepWords" type="text" placeholder="月亮, 朋友 — leave empty and I'll choose" />
+        <div class="hint">Separate with commas or spaces. Leave it blank and I'll pick a few good ones,
+          then you can change them after reading.</div>
+      </div>
       <button id="go" disabled>Tell me the story</button>
       <div id="err" class="err"></div>
     </div>
 
     <div class="card hidden" id="storyCard">
       <h2 class="title" id="storyTitle"></h2>
+      <div class="vocabHead">
+        <h3>Chinese words kept in the story</h3>
+        <span class="hint" id="vocabHint">Tick the ones you want — I'll retell it around your choice.</span>
+      </div>
       <div id="vocab" class="vocab"></div>
+      <div id="vocabErr" class="err"></div>
       <div id="pages" style="margin-top:18px;"></div>
     </div>
 
     <div class="card hidden" id="audioCard">
       <label class="narrLabel" id="narrLabel" for="narration">✏️ Narration script — tweak the wording however you like, then have me read it aloud</label>
-      <textarea id="narration" spellcheck="false"></textarea>
+      <div class="editorWrap">
+        <textarea id="narration" spellcheck="false"></textarea>
+        <pre id="narrHighlight" aria-hidden="true"></pre>
+      </div>
       <button id="genAudio">🔊 Read it aloud</button>
       <button id="showPinyin" class="secondary">🔤 Show Pinyin</button>
       <div id="pinyinOut" class="pinyin hidden"></div>
@@ -226,6 +273,7 @@
         audioCard.classList.remove('hidden');
         narrLabel.textContent = TEXT_LABEL;
         narration.value = '';
+        paintNarration();
         narration.focus();
       }
     }
@@ -241,6 +289,7 @@
       try {
         const fd = new FormData();
         files.forEach(f => fd.append('images', f));
+        fd.append('keep_words', document.getElementById('keepWords').value || '');
         const res = await fetch('/api/story', { method: 'POST', body: fd });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
@@ -323,7 +372,116 @@
       }
     });
 
-    function render(data) {
+    // --- Dim the SSML tags behind the narration textarea -------------------
+    const narrHighlight = document.getElementById('narrHighlight');
+
+    function paintNarration() {
+      const text = narration.value;
+      const escaped = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Any XML-ish tag, so <break/> and <prosody> dim too, not just mstts.
+      const marked = escaped.replace(
+        /&lt;\/?[a-zA-Z][^&]*?\/?&gt;/g,
+        m => '<span class="tag">' + m + '</span>'
+      );
+      // A trailing newline needs a spare line or the last row is clipped.
+      narrHighlight.innerHTML = marked + (text.endsWith('\n') ? ' ' : '');
+      narrHighlight.scrollTop = narration.scrollTop;
+      narrHighlight.scrollLeft = narration.scrollLeft;
+    }
+
+    narration.addEventListener('input', paintNarration);
+    narration.addEventListener('scroll', () => {
+      narrHighlight.scrollTop = narration.scrollTop;
+      narrHighlight.scrollLeft = narration.scrollLeft;
+    });
+    // Dragging the resize handle changes the textarea box; follow it.
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => {
+        narrHighlight.style.height = narration.style.height || '';
+      }).observe(narration);
+    }
+
+    // The story as the server last returned it, so /api/vocab can rewrite it.
+    let currentStory = null;
+    let vocabTimer = null;
+    let vocabBusy = false;
+
+    function chosenWords() {
+      return [...document.querySelectorAll('#vocab input:checked')].map(i => i.value);
+    }
+
+    function renderVocab(story) {
+      const box = document.getElementById('vocab');
+      const hint = document.getElementById('vocabHint');
+      const head = document.querySelector('.vocabHead');
+      box.innerHTML = '';
+
+      const kept = new Set((story.vocab || []).map(v => v.chinese));
+      // Candidates plus anything kept, so a kept word always has a box.
+      const seen = new Set();
+      const all = [...(story.vocab_candidates || []), ...(story.vocab || [])]
+        .filter(v => v && v.chinese && !seen.has(v.chinese) && seen.add(v.chinese));
+
+      // The "paste your own story" mode has no word menu; hide the section.
+      head.style.display = all.length ? '' : 'none';
+      if (!all.length) { hint.textContent = ''; return; }
+      hint.textContent = "Tick the ones you want — I'll retell it around your choice.";
+
+      all.forEach(item => {
+        const on = kept.has(item.chinese);
+        const l = document.createElement('label');
+        l.className = 'chip' + (on ? ' on' : '');
+        l.innerHTML =
+          `<input type="checkbox" value="${item.chinese}"${on ? ' checked' : ''} />` +
+          `<span><b>${item.chinese}</b> <span>${item.pinyin} — ${item.english}</span></span>`;
+        l.querySelector('input').addEventListener('change', onVocabChange);
+        box.appendChild(l);
+      });
+    }
+
+    function onVocabChange(ev) {
+      ev.target.closest('label').classList.toggle('on', ev.target.checked);
+      const vocabErr = document.getElementById('vocabErr');
+      vocabErr.textContent = '';
+      if (!chosenWords().length) {
+        vocabErr.textContent = '😟 Keep at least one Chinese word.';
+        clearTimeout(vocabTimer);
+        return;
+      }
+      // Debounce: ticking three boxes in a row is one rewrite, not three.
+      clearTimeout(vocabTimer);
+      vocabTimer = setTimeout(applyVocab, 700);
+    }
+
+    async function applyVocab() {
+      if (vocabBusy || !currentStory) return;
+      const keep = chosenWords();
+      if (!keep.length) return;
+      const vocabErr = document.getElementById('vocabErr');
+      const hint = document.getElementById('vocabHint');
+      vocabBusy = true;
+      hint.innerHTML = '<span class="spinner"></span> Retelling the story...';
+      try {
+        const res = await fetch('/api/vocab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ story: currentStory, keep }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.detail || j.error || ('HTTP ' + res.status));
+        }
+        render(await res.json(), { keepScroll: true });
+      } catch (e) {
+        vocabErr.textContent = '😟 ' + e.message;
+        hint.textContent = "Tick the ones you want — I'll retell it around your choice.";
+      } finally {
+        vocabBusy = false;
+      }
+    }
+
+    function render(data, opts) {
       storyCard.classList.remove('hidden');
       audioCard.classList.remove('hidden');
       narrLabel.textContent = PICS_LABEL;
@@ -331,14 +489,12 @@
 
       // Editable narration script; hide any previously generated audio.
       narration.value = data.full_narration || '';
+      paintNarration();
       clearAudio();
 
-      const v = document.getElementById('vocab'); v.innerHTML = '';
-      (data.story.vocab || []).forEach(item => {
-        const c = document.createElement('div'); c.className = 'chip';
-        c.innerHTML = `<b>${item.chinese}</b> <span>${item.pinyin} — ${item.english}</span>`;
-        v.appendChild(c);
-      });
+      currentStory = data.story;
+      document.getElementById('vocabErr').textContent = '';
+      renderVocab(data.story);
 
       const p = document.getElementById('pages'); p.innerHTML = '';
       data.story.pages.forEach(pg => {
@@ -348,7 +504,7 @@
           (pg.original_chinese ? `<div class="zh">原文：${pg.original_chinese}</div>` : '');
         p.appendChild(d);
       });
-      storyCard.scrollIntoView({ behavior: 'smooth' });
+      if (!(opts && opts.keepScroll)) storyCard.scrollIntoView({ behavior: 'smooth' });
     }
   </script>
 </body>

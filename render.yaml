@@ -15,13 +15,27 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.11
       # Secrets — set their values in the Render dashboard, NOT here.
-      - key: GEMINI_API_KEY
+      - key: LITHOSAI_API_KEY
         sync: false
       - key: AZURE_SPEECH_KEY
         sync: false
       # Optional overrides (defaults live in app/config.py).
-      - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+      - key: LITHOSAI_BASE_URL
+        value: https://api.lithosai.cloud/v1
+      - key: LITHOSAI_MODEL
+        value: moonshotai/Kimi-K3
+      # K3 thinks by default; this task does not need it.
+      - key: LITHOSAI_REASONING_EFFORT
+        value: low
+      # Downscale uploaded page photos before sending them to the model.
+      - key: IMAGE_RESIZE
+        value: "true"
+      - key: IMAGE_MAX_DIM
+        value: "1536"
+      - key: IMAGE_JPEG_QUALITY
+        value: "85"
+      - key: IMAGE_MAX_KB
+        value: "900"
       # TTS: "azure" (native multilingual zh-CN), "gemini" (paid), or "edge" (free).
       - key: TTS_PROVIDER
         value: azure
@@ -36,6 +50,8 @@ services:
       - key: AZURE_TTS_STYLE
         value: story
       # Gemini TTS (used only when TTS_PROVIDER=gemini).
+      - key: GEMINI_API_KEY
+        sync: false
       - key: GEMINI_TTS_MODEL
         value: gemini-2.5-flash-preview-tts
       - key: GEMINI_TTS_VOICE

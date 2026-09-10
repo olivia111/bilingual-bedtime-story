@@ -13,6 +13,7 @@ import asyncio
 import io
 import re
 import time
+import urllib.error
 import urllib.request
 import wave
 from xml.sax.saxutils import escape, quoteattr
@@ -265,6 +266,18 @@ def _azure_tts_mp3(text: str, attempts: int = 3) -> bytes:
             if not data:
                 raise RuntimeError("Azure TTS returned no audio.")
             return data
+        except urllib.error.HTTPError as exc:
+            # 401/403 will never succeed on retry — fail fast and say why.
+            if exc.code in (401, 403):
+                raise RuntimeError(
+                    f"Azure Speech rejected the credentials ({exc.code}). Check "
+                    f"AZURE_SPEECH_KEY and that AZURE_SPEECH_REGION "
+                    f"('{config.AZURE_SPEECH_REGION}') matches the resource, or set "
+                    "TTS_PROVIDER=edge in .env to use the free voices instead."
+                ) from exc
+            last_error = exc
+            if attempt < attempts - 1:
+                time.sleep(1.0 * (attempt + 1))
         except Exception as exc:
             last_error = exc
             if attempt < attempts - 1:
@@ -274,7 +287,10 @@ def _azure_tts_mp3(text: str, attempts: int = 3) -> bytes:
 
 async def _azure_story(sections: list[str]) -> bytes:
     if not config.AZURE_SPEECH_KEY:
-        raise RuntimeError("AZURE_SPEECH_KEY is not set.")
+        raise RuntimeError(
+            "TTS_PROVIDER=azure but AZURE_SPEECH_KEY is not set. Add a key to .env, "
+            "or set TTS_PROVIDER=edge to use the free voices (no key needed)."
+        )
     flip = _edge_flip_bytes()  # MP3 flip, same format as Azure output
     out = bytearray()
     for i, seg in enumerate(sections):
