@@ -59,6 +59,16 @@ async def health() -> dict:
     return {"status": "ok", "lithos_key_set": bool(config.LITHOS_API_KEY)}
 
 
+@app.get("/api/styles")
+async def styles() -> dict:
+    """The speaking styles the configured voice accepts.
+
+    One list drives both the story prompt and the tone picker, so the UI can
+    never offer a style the model was told not to use.
+    """
+    return {"styles": config.AZURE_TTS_STYLES, "default": config.AZURE_TTS_STYLE}
+
+
 async def _read_images(images: List[UploadFile]) -> List[Tuple[bytes, str]]:
     """Validate uploads and return (bytes, mime_type) tuples in upload order."""
     if not images:

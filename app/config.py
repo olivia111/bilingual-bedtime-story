@@ -66,6 +66,17 @@ AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "eastus").strip()
 AZURE_TTS_VOICE = os.getenv("AZURE_TTS_VOICE", "zh-CN-XiaoxiaoMultilingualNeural").strip()
 # Azure speaking style (mstts:express-as). "story" = storytelling. Empty = none.
 AZURE_TTS_STYLE = os.getenv("AZURE_TTS_STYLE", "story").strip()
+# Styles offered in the UI and named in the story prompt. Azure DISCARDS the
+# whole mstts:express-as element when the style is not supported by the voice,
+# falling back to flat neutral speech — so an over-generous list silently costs
+# expressiveness. Confirm the real list for your voice with:
+#     python check_azure_voice.py
+AZURE_TTS_STYLES = [
+    s.strip() for s in os.getenv(
+        "AZURE_TTS_STYLES",
+        "affectionate,cheerful,empathetic,excited,poetry-reading,sorry,story",
+    ).split(",") if s.strip()
+]
 # Style intensity for mstts:express-as (e.g. 1.0 to 2.0). Empty = provider default.
 AZURE_TTS_STYLE_DEGREE = os.getenv("AZURE_TTS_STYLE_DEGREE", "1.25").strip()
 # Optional speaking role for compatible voices (e.g. Narrator, YoungAdultFemale).

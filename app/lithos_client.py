@@ -53,10 +53,15 @@ story, do the following:
    chooses from, so do not narrate with these — only the `vocab` words appear
    in the narration.
 7. Fill in `narration_ssml` for each page as Azure SSML-style content that uses
-    per-sentence emotion tags. Use one or more blocks like:
+    per-sentence emotion tags, like:
     <mstts:express-as style="cheerful">...</mstts:express-as>
-    <mstts:express-as style="sad">...</mstts:express-as>
-    You may also use styles such as calm, empathetic, and excited.
+    Give each sentence its own block, and choose the style that fits what is
+    happening in that sentence. Use "story" as the default for ordinary
+    narration, and switch only where the moment calls for it.
+    You may ONLY use these styles, spelled exactly like this:
+    {styles}
+    Any other value makes the voice fall back to flat, emotionless speech, so
+    never invent one.
     Important: this field must be an SSML fragment only, so do not include
     <speak> or <voice> wrappers.
 
@@ -131,6 +136,10 @@ Keep the title, the page order, each page's `original_chinese`, each page's
 `illustration`, and `vocab_candidates` exactly as they are. Rewrite `narration`
 and `narration_ssml` for each page, and set `vocab` to exactly the chosen words
 with pinyin and a short English meaning.
+
+In `narration_ssml`, use only these styles, spelled exactly like this:
+{styles}
+Any other value makes the voice fall back to flat speech.
 
 The same narration rules apply: `narration` is read aloud by a text-to-speech
 voice, so plain spoken words only, no markdown, no emoji, no symbols, no em
@@ -268,8 +277,10 @@ def generate_story(
     word_choice = (
         _REQUESTED.format(words=", ".join(keep_words)) if keep_words else _FREE_CHOICE
     )
-    prompt = SYSTEM_PROMPT.replace("{word_choice}", word_choice).replace(
-        "{schema}", json.dumps(schema, ensure_ascii=False, indent=2)
+    prompt = (
+        SYSTEM_PROMPT.replace("{word_choice}", word_choice)
+        .replace("{styles}", ", ".join(config.AZURE_TTS_STYLES))
+        .replace("{schema}", json.dumps(schema, ensure_ascii=False, indent=2))
     )
     content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
     for idx, (data, mime_type) in enumerate(images, start=1):
@@ -298,6 +309,7 @@ def restyle_story(story: Story, keep: List[str]) -> Story:
     prompt = RESTYLE_PROMPT.format(
         story=story.model_dump_json(indent=2),
         words=", ".join(keep),
+        styles=", ".join(config.AZURE_TTS_STYLES),
         schema=json.dumps(schema, ensure_ascii=False, indent=2),
     )
     restyled = _request_story([{"role": "user", "content": prompt}], schema)

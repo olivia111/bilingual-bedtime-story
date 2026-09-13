@@ -49,6 +49,9 @@ services:
         value: zh-CN-XiaoxiaoMultilingualNeural
       - key: AZURE_TTS_STYLE
         value: story
+      # The only styles the story prompt may use / the picker may offer.
+      - key: AZURE_TTS_STYLES
+        value: affectionate,cheerful,empathetic,excited,poetry-reading,sorry,story
       # Gemini TTS (used only when TTS_PROVIDER=gemini).
       - key: GEMINI_API_KEY
         sync: false

@@ -74,14 +74,14 @@
     /* The SSML tags are dimmed by painting a highlighted copy of the text
        behind a textarea whose own text is transparent. Both layers must share
        every metric exactly or the caret drifts away from the glyphs. */
-    .editorWrap { position:relative; }
+    .editorWrap { position:relative; flex:1 1 auto; min-width:0; }
     textarea#narration, #narrHighlight {
       width:100%; box-sizing:border-box; padding:14px 16px; border-radius:12px;
       border:1px solid #6b5a9c; font-size:1rem; line-height:1.7; font-family:inherit;
       letter-spacing:normal; white-space:pre-wrap; overflow-wrap:break-word; margin:0;
     }
     textarea#narration {
-      position:relative; z-index:1; min-height:200px; resize:vertical;
+      position:relative; z-index:1; min-height:320px; resize:vertical;
       background:transparent; color:transparent; caret-color:var(--text);
       display:block;
     }
@@ -94,6 +94,32 @@
     }
     /* Dimmed, but still legible if you go looking for it. */
     #narrHighlight .tag { color:#6e5fa0; }
+
+    /* --- Tone gutter: one pill per line, aligned to the text beside it --- */
+    .editorGrid { display:flex; gap:10px; align-items:flex-start; }
+    #toneGutter { position:relative; flex:0 0 100px; overflow:hidden; align-self:stretch; }
+    /* Must follow the rule above: same specificity, so source order decides. */
+    @media (max-width:560px) { #toneGutter { flex-basis:88px; } }
+    #toneGutter .tonePos { position:absolute; left:0; right:0; }
+    select.tone {
+      width:100%; appearance:none; -webkit-appearance:none; cursor:pointer;
+      padding:2px 16px 2px 9px; border-radius:999px; background-color:#3a2c60; color:var(--text);
+      border:1px solid #6b5a9c; font-size:.75rem; font-weight:600; font-family:inherit;
+      line-height:1.5; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;
+      background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                       linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+      background-position:calc(100% - 10px) 50%, calc(100% - 7px) 50%;
+      background-size:4px 4px, 4px 4px; background-repeat:no-repeat;
+      transition:border-color .15s, background-color .15s;
+    }
+    select.tone:hover, select.tone:focus { outline:none; border-color:var(--accent); }
+    select.tone.plain { background-color:#2a2046; color:var(--muted); }
+    select.tone option { background:#2a2046; color:var(--text); font-size:.9rem; }
+    /* Mirror lines used to measure where each line sits. */
+    #narrHighlight .ml:empty::after { content:"\00a0"; }
+    .editorSwitch { float:right; font-size:.82rem; color:var(--muted); background:none;
+                    border:none; padding:0; margin:0; cursor:pointer; font-weight:600; }
+    .editorSwitch:hover { color:var(--accent); transform:none; }
     audio { width:100%; margin-top:8px; }
     .spinner { display:inline-block; width:18px; height:18px; border:3px solid #ffffff60;
                border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-4px; }
@@ -160,10 +186,14 @@
     </div>
 
     <div class="card hidden" id="audioCard">
+      <button id="toggleRaw" class="editorSwitch" type="button">&lt;/&gt; Edit as SSML</button>
       <label class="narrLabel" id="narrLabel" for="narration">✏️ Narration script — tweak the wording however you like, then have me read it aloud</label>
-      <div class="editorWrap">
-        <textarea id="narration" spellcheck="false"></textarea>
-        <pre id="narrHighlight" aria-hidden="true"></pre>
+      <div class="editorGrid">
+        <div id="toneGutter"></div>
+        <div class="editorWrap">
+          <textarea id="narration" spellcheck="false"></textarea>
+          <pre id="narrHighlight" aria-hidden="true"></pre>
+        </div>
       </div>
       <button id="genAudio">🔊 Read it aloud</button>
       <button id="showPinyin" class="secondary">🔤 Show Pinyin</button>
@@ -273,6 +303,11 @@
         audioCard.classList.remove('hidden');
         narrLabel.textContent = TEXT_LABEL;
         narration.value = '';
+        lineStyles = [];
+        lastLines = [];
+        rawMode = true;
+        toneGutter.style.display = 'none';
+        toggleRaw.style.display = 'none';
         paintNarration();
         narration.focus();
       }
@@ -307,7 +342,7 @@
     // Step 2: (edited) narration text -> audio.
     genAudio.addEventListener('click', async () => {
       audioErr.textContent = '';
-      const text = narration.value.trim();
+      const text = currentNarration();
       if (!text) { audioErr.textContent = '😟 The narration is empty.'; return; }
       genAudio.disabled = true;
       const original = genAudio.innerHTML;
@@ -372,10 +407,187 @@
       }
     });
 
+    // --- Tone gutter -------------------------------------------------------
+    // The textarea holds PLAIN text, one sentence per line, with blank lines
+    // marking page breaks (the server splits pages on those and drops a
+    // page-flip sound between). Tones live in a parallel array and are turned
+    // back into <mstts:express-as> only when the narration is sent.
+    const toneGutter = document.getElementById('toneGutter');
+    const editorGrid = document.querySelector('.editorGrid');
+    const toggleRaw = document.getElementById('toggleRaw');
+    let rawMode = false;
+    let lineStyles = [];
+
+    // Filled from /api/styles so the picker can only offer styles the voice
+    // actually supports — an unsupported one makes Azure drop the whole tag.
+    // Short labels keep the gutter narrow. The exact Azure style name is still
+    // the option value and the pill's tooltip, so nothing is lost.
+    const TONE_ICON = {
+      story: '📖', calm: '🌙', cheerful: '😊', affectionate: '💗', excited: '✨',
+      empathetic: '🤍', sad: '🌧', sorry: '😔', 'poetry-reading': '🍃',
+      gentle: '🍂', lyrical: '🎵', serious: '📘', whisper: '🤫', chat: '💬',
+    };
+    const TONE_SHORT = {
+      cheerful: 'happy', affectionate: 'warm', empathetic: 'kind',
+      'poetry-reading': 'poetry',
+    };
+    const toneLabel = n => (TONE_ICON[n] || '🎙') + ' ' + (TONE_SHORT[n] || n);
+    let TONES = [['', '🗣 plain']];
+    fetch('/api/styles').then(r => r.json()).then(d => {
+      TONES = [['', '🗣 plain']].concat((d.styles || []).map(n => [n, toneLabel(n)]));
+      if (!rawMode) paintNarration();
+    }).catch(() => {});
+
+    const hasSsml = t => /<mstts:express-as/i.test(t);
+    const escHtml = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function splitSentences(text) {
+      const parts = text.match(/[^.!?。！？]+[.!?。！？]*["'”’)]*\s*/g);
+      return (parts || [text]).map(t => t.trim()).filter(Boolean);
+    }
+
+    // SSML -> { lines, styles }. One sentence per line; '' line = page break.
+    function ssmlToLines(text) {
+      const lines = [], styles = [];
+      text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).forEach((sec, i) => {
+        if (i) { lines.push(''); styles.push(''); }
+        const re = /<mstts:express-as\s+([^>]*)>([\s\S]*?)<\/mstts:express-as>/gi;
+        let last = 0, m, any = false;
+        const push = (style, chunk) => splitSentences(chunk).forEach(t => {
+          lines.push(t); styles.push(style);
+        });
+        while ((m = re.exec(sec)) !== null) {
+          any = true;
+          const before = sec.slice(last, m.index).trim();
+          if (before) push('', before);
+          const sm = /style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/i.exec(m[1]);
+          push(sm ? (sm[1] || sm[2] || '') : '', m[2].trim());
+          last = re.lastIndex;
+        }
+        const tail = sec.slice(last).trim();
+        if (tail) push('', tail);
+        if (!any && !tail) push('', sec);
+      });
+      return { lines, styles };
+    }
+
+    // { lines, styles } -> the SSML the server and Azure actually receive.
+    function linesToSsml(lines, styles) {
+      return lines.map((raw, i) => {
+        const t = raw.trim();
+        if (!t) return '';
+        const st = (styles[i] || '').trim();
+        if (!st) return t;
+        return '<mstts:express-as style="' + st.replace(/"/g, '&quot;') + '">' + t +
+               '</mstts:express-as>';
+      }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    // What gets sent, whichever editor is showing.
+    function currentNarration() {
+      return rawMode ? narration.value.trim()
+                     : linesToSsml(narration.value.split('\n'), lineStyles);
+    }
+
+    // Keep tones attached to their lines as the text is edited, by matching
+    // the unchanged head and tail and only reflowing what changed between.
+    function realignStyles(oldLines, newLines) {
+      let head = 0;
+      while (head < oldLines.length && head < newLines.length &&
+             oldLines[head] === newLines[head]) head++;
+      let tail = 0;
+      while (tail < oldLines.length - head && tail < newLines.length - head &&
+             oldLines[oldLines.length - 1 - tail] === newLines[newLines.length - 1 - tail]) tail++;
+      const inserted = newLines.length - head - tail;
+      const inherit = lineStyles[head] !== undefined ? lineStyles[head]
+                                                     : (lineStyles[head - 1] || '');
+      lineStyles = [
+        ...lineStyles.slice(0, head),
+        ...Array(Math.max(0, inserted)).fill(inherit),
+        ...lineStyles.slice(oldLines.length - tail),
+      ];
+    }
+
+    function makeToneSelect(style, index) {
+      const sel = document.createElement('select');
+      sel.className = 'tone' + (style ? '' : ' plain');
+      sel.title = style ? 'Azure style: ' + style : 'No style tag on this line';
+      TONES.forEach(([value, label]) => {
+        const o = document.createElement('option');
+        o.value = value; o.textContent = label;
+        if (value === style) o.selected = true;
+        sel.appendChild(o);
+      });
+      if (style && !TONES.some(([v]) => v === style)) {
+        const o = document.createElement('option');
+        o.value = style; o.textContent = '• ' + style; o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener('change', () => {
+        lineStyles[index] = sel.value;
+        sel.classList.toggle('plain', !sel.value);
+        sel.title = sel.value ? 'Azure style: ' + sel.value : 'No style tag on this line';
+      });
+      return sel;
+    }
+
+    // Draw the mirror (which is what you actually see) and place one pill per
+    // line at the measured position of that line.
+    function paintLines() {
+      const lines = narration.value.split('\n');
+      narrHighlight.innerHTML = lines
+        .map(l => '<div class="ml">' + escHtml(l) + '</div>').join('');
+      narrHighlight.scrollTop = narration.scrollTop;
+
+      toneGutter.innerHTML = '';
+      const mirrors = narrHighlight.querySelectorAll('.ml');
+      lines.forEach((line, i) => {
+        if (!line.trim()) return;               // page break: no pill
+        const el = mirrors[i];
+        if (!el) return;
+        const holder = document.createElement('div');
+        holder.className = 'tonePos';
+        holder.style.top = (el.offsetTop - narration.scrollTop) + 'px';
+        holder.appendChild(makeToneSelect(lineStyles[i] || '', i));
+        toneGutter.appendChild(holder);
+      });
+      // The gutter must be at least as tall as the text it annotates.
+      toneGutter.style.minHeight = narration.clientHeight + 'px';
+    }
+
+    function setRawMode(on) {
+      if (on && !rawMode) {
+        narration.value = currentNarration();          // lines -> SSML
+      } else if (!on) {
+        const parsed = ssmlToLines(hasSsml(narration.value)
+          ? narration.value
+          : linesToSsml(narration.value.split('\n'), lineStyles));
+        lineStyles = parsed.styles;
+        narration.value = parsed.lines.join('\n');
+      }
+      rawMode = on;
+      toneGutter.style.display = on ? 'none' : '';
+      toggleRaw.innerHTML = on ? '☰ Edit as lines' : '&lt;/&gt; Edit as SSML';
+      paintNarration();
+    }
+
+    function loadNarration(ssml) {
+      const parsed = ssmlToLines(ssml || '');
+      lineStyles = parsed.styles;
+      narration.value = parsed.lines.join('\n');
+      rawMode = false;
+      toneGutter.style.display = '';
+      toggleRaw.innerHTML = '&lt;/&gt; Edit as SSML';
+      paintNarration();
+    }
+
+    toggleRaw.addEventListener('click', () => setRawMode(!rawMode));
+
     // --- Dim the SSML tags behind the narration textarea -------------------
     const narrHighlight = document.getElementById('narrHighlight');
 
     function paintNarration() {
+      if (!rawMode) { paintLines(); return; }
       const text = narration.value;
       const escaped = text
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -390,10 +602,19 @@
       narrHighlight.scrollLeft = narration.scrollLeft;
     }
 
-    narration.addEventListener('input', paintNarration);
+    let lastLines = [];
+    narration.addEventListener('input', () => {
+      if (!rawMode) {
+        const now = narration.value.split('\n');
+        realignStyles(lastLines, now);
+        lastLines = now;
+      }
+      paintNarration();
+    });
     narration.addEventListener('scroll', () => {
       narrHighlight.scrollTop = narration.scrollTop;
       narrHighlight.scrollLeft = narration.scrollLeft;
+      if (!rawMode) paintLines();
     });
     // Dragging the resize handle changes the textarea box; follow it.
     if (window.ResizeObserver) {
@@ -482,17 +703,19 @@
     }
 
     function render(data, opts) {
+      // Set first: the block editor reads the title to label its sections.
+      currentStory = data.story;
       storyCard.classList.remove('hidden');
       audioCard.classList.remove('hidden');
       narrLabel.textContent = PICS_LABEL;
       document.getElementById('storyTitle').textContent = data.story.title;
 
       // Editable narration script; hide any previously generated audio.
-      narration.value = data.full_narration || '';
-      paintNarration();
+      loadNarration(data.full_narration || '');
+      lastLines = narration.value.split('\n');
+      toggleRaw.style.display = '';
       clearAudio();
 
-      currentStory = data.story;
       document.getElementById('vocabErr').textContent = '';
       renderVocab(data.story);
 
