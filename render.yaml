@@ -23,7 +23,7 @@ services:
       - key: LITHOSAI_BASE_URL
         value: https://api.lithosai.cloud/v1
       - key: LITHOSAI_MODEL
-        value: moonshotai/Kimi-K3
+        value: deepseek-ai/DeepSeek-V4.1-Flash
       # K3 thinks by default; this task does not need it.
       - key: LITHOSAI_REASONING_EFFORT
         value: low

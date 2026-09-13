@@ -27,7 +27,7 @@ def _secret(name: str) -> str:
 # Story generation runs on Lithos AI's OpenAI-compatible endpoint.
 LITHOS_API_KEY = _secret("LITHOSAI_API_KEY")
 LITHOS_BASE_URL = os.getenv("LITHOSAI_BASE_URL", "https://api.lithosai.cloud/v1").strip()
-LITHOS_MODEL = os.getenv("LITHOSAI_MODEL", "moonshotai/Kimi-K3").strip()
+LITHOS_MODEL = os.getenv("LITHOSAI_MODEL", "deepseek-ai/DeepSeek-V4.1-Flash").strip()
 
 # K3 reasons by default, which for this task is wasted latency and output
 # tokens: transcribing a picture book does not need extended deliberation.
