@@ -34,11 +34,16 @@ LITHOS_MODEL = os.getenv("LITHOSAI_MODEL", "deepseek-ai/DeepSeek-V4.1-Flash").st
 # Values: low, high, max (max is the server default). "" to omit the field.
 LITHOS_REASONING_EFFORT = os.getenv("LITHOSAI_REASONING_EFFORT", "low").strip()
 
+# Seconds to wait on one model call. Ten pages of vision input is slow, so
+# this is generous — but never unbounded.
+LITHOS_TIMEOUT = float(os.getenv("LITHOSAI_TIMEOUT", "300"))
+
 # Uploaded page photos are downscaled before being sent to the model: phone
-# photos are large and base64 adds ~33% on top. 1536px on the long edge keeps
-# storybook text legible while cutting the payload dramatically.
+# photos are large and base64 adds ~33% on top. 1300px matches the box the
+# endpoint resizes into anyway, so the page is resampled once (here, with
+# Lanczos) instead of twice — which matters for dense Chinese characters.
 IMAGE_RESIZE = os.getenv("IMAGE_RESIZE", "true").strip().lower() in ("1", "true", "yes", "on")
-IMAGE_MAX_DIM = int(os.getenv("IMAGE_MAX_DIM", "1536"))
+IMAGE_MAX_DIM = int(os.getenv("IMAGE_MAX_DIM", "1300"))
 IMAGE_JPEG_QUALITY = int(os.getenv("IMAGE_JPEG_QUALITY", "85"))
 # Per-page ceiling after encoding; quality steps down until it fits.
 IMAGE_MAX_BYTES = int(os.getenv("IMAGE_MAX_KB", "900")) * 1024

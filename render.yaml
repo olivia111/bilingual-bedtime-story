@@ -31,7 +31,7 @@ services:
       - key: IMAGE_RESIZE
         value: "true"
       - key: IMAGE_MAX_DIM
-        value: "1536"
+        value: "1300"
       - key: IMAGE_JPEG_QUALITY
         value: "85"
       - key: IMAGE_MAX_KB

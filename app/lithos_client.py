@@ -165,6 +165,10 @@ def _client() -> OpenAI:
     return OpenAI(
         api_key=config.LITHOS_API_KEY,
         base_url=config.LITHOS_BASE_URL,
+        # Without this the SDK waits indefinitely, holding the request open
+        # until the platform gives up on it first.
+        timeout=config.LITHOS_TIMEOUT,
+        max_retries=1,
     )
 
 

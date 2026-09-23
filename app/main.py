@@ -1,4 +1,5 @@
 """FastAPI app: upload storybook pages -> bilingual bedtime story -> audio."""
+import asyncio
 import logging
 import re
 import uuid
@@ -133,7 +134,7 @@ async def make_story(
     """
     page_data = await _read_images(images)
     try:
-        story = lithos_client.generate_story(page_data, keep_words=_parse_words(keep_words))
+        story = await asyncio.to_thread(lithos_client.generate_story, page_data, keep_words=_parse_words(keep_words))
     except Exception as exc:  # surface a clean error to the client
         raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}")
 
@@ -153,7 +154,7 @@ async def change_vocab(request: Request, req: RestyleRequest) -> StoryDraft:
     than regenerating the story.
     """
     try:
-        story = lithos_client.restyle_story(req.story, req.keep)
+        story = await asyncio.to_thread(lithos_client.restyle_story, req.story, req.keep)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -204,7 +205,7 @@ async def tell_story(request: Request, images: List[UploadFile] = File(...)) -> 
 
     # 1. Vision + storytelling via Lithos AI.
     try:
-        story = lithos_client.generate_story(page_data)
+        story = await asyncio.to_thread(lithos_client.generate_story, page_data)
     except Exception as exc:  # surface a clean error to the client
         raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}")
 
